@@ -1,0 +1,201 @@
+<div class="hist-shell" [class.light-mode]="themeService.isLight">
+
+  <!-- ═══ TOP BAR ═══ -->
+  <header class="hist-topbar">
+    <div class="hist-topbar-left">
+      <a class="hist-back" routerLink="/admin-dashboard">
+        <mat-icon>arrow_back</mat-icon>
+      </a>
+      <div class="hist-title-block">
+        <h1>Inspection History</h1>
+        <span class="hist-subtitle">{{ totalRecords }} records found</span>
+      </div>
+    </div>
+    <div class="hist-topbar-right">
+      <button class="hist-icon-btn" (click)="themeService.toggleTheme()" [matTooltip]="themeService.isLight ? 'Dark Mode' : 'Light Mode'">
+        <mat-icon>{{ themeService.isLight ? 'dark_mode' : 'light_mode' }}</mat-icon>
+      </button>
+      <button class="hist-icon-btn" (click)="logout()" matTooltip="Logout">
+        <mat-icon>logout</mat-icon>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══ FILTERS BAR ═══ -->
+  <div class="hist-filters">
+    <div class="filter-group">
+      <label>Search</label>
+      <input type="text" class="filter-input" placeholder="Search by device..." [(ngModel)]="searchTerm" (keyup.enter)="applyFilters()">
+    </div>
+    <div class="filter-group">
+      <label>Result</label>
+      <select class="filter-select" [(ngModel)]="filterResult" (change)="applyFilters()">
+        <option value="all">All</option>
+        <option value="pass">Pass</option>
+        <option value="fail">Fail</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>From</label>
+      <input type="date" class="filter-input" [(ngModel)]="filterDateFrom" (change)="applyFilters()">
+    </div>
+    <div class="filter-group">
+      <label>To</label>
+      <input type="date" class="filter-input" [(ngModel)]="filterDateTo" (change)="applyFilters()">
+    </div>
+    <div class="filter-group">
+      <label>Min Confidence %</label>
+      <input type="number" class="filter-input filter-narrow" min="0" max="100" placeholder="0" [(ngModel)]="filterMinConfidence" (change)="applyFilters()">
+    </div>
+    <div class="filter-actions">
+      <button class="filter-btn filter-btn-apply" (click)="applyFilters()">
+        <mat-icon>search</mat-icon> Apply
+      </button>
+      <button class="filter-btn filter-btn-reset" (click)="resetFilters()">
+        <mat-icon>restart_alt</mat-icon> Reset
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ TABLE ═══ -->
+  <div class="hist-table-wrap">
+    <div class="hist-loading" *ngIf="loading">
+      <mat-icon>autorenew</mat-icon>
+      <span>Loading inspections...</span>
+    </div>
+
+    <div class="hist-empty" *ngIf="!loading && errorMessage">
+      <mat-icon>cloud_off</mat-icon>
+      <h3>{{ errorMessage }}</h3>
+      <p>Check the backend connection and try again.</p>
+      <button class="hist-retry-btn" (click)="fetchHistory()">
+        <mat-icon>refresh</mat-icon> Retry
+      </button>
+    </div>
+
+    <div class="hist-empty" *ngIf="!loading && !errorMessage && inspections.length === 0">
+      <mat-icon>inbox</mat-icon>
+      <h3>No inspections recorded yet</h3>
+      <p>Inspection results will appear here once the AI system begins processing.</p>
+    </div>
+
+    <table class="hist-table" *ngIf="!loading && inspections.length > 0">
+      <thead>
+        <tr>
+          <th>#ID</th>
+          <th>Date &amp; Time</th>
+          <th>Device</th>
+          <th>Expiry Date</th>
+          <th>Result</th>
+          <th>Confidence</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of inspections; let i = index"
+            (click)="openDetail(item)"
+            class="hist-row">
+          <td class="col-id">{{ getShortId(item.id) }}</td>
+          <td class="col-time">{{ item.timestamp | date:'dd MMM yyyy, HH:mm:ss' }}</td>
+          <td class="col-device">{{ item.device || 'Niryo Camera' }}</td>
+          <td class="col-date">
+            <span [class.date-read]="item.detected_date && item.detected_date !== 'missing'"
+                  [class.date-missing]="!item.detected_date || item.detected_date === 'missing'">
+              {{ (item.detected_date && item.detected_date !== 'missing') ? item.detected_date : '—' }}
+            </span>
+          </td>
+          <td>
+            <span class="result-tag" [class.tag-pass]="item.label === 'OK'" [class.tag-fail]="item.label !== 'OK'">
+              {{ item.label === 'OK' ? 'PASS' : 'FAIL' }}
+            </span>
+          </td>
+          <td class="col-conf">
+            <div class="conf-bar-wrap">
+              <div class="conf-bar">
+                <div class="conf-fill"
+                     [style.width.%]="normaliseConfidence(item.confidence)"
+                     [class.fill-green]="item.label === 'OK'"
+                     [class.fill-red]="item.label !== 'OK'">
+                </div>
+              </div>
+              <span class="conf-val">{{ normaliseConfidence(item.confidence) }}%</span>
+            </div>
+          </td>
+          <td>
+            <button class="detail-btn" (click)="openDetail(item); $event.stopPropagation()">
+              <mat-icon>visibility</mat-icon> View
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ PAGINATION ═══ -->
+  <div class="hist-pagination" *ngIf="totalPages > 1">
+    <button class="page-btn" [disabled]="currentPage === 1" (click)="goToPage(currentPage - 1)">
+      <mat-icon>chevron_left</mat-icon> Previous
+    </button>
+    <div class="page-numbers">
+      <button *ngFor="let p of pageNumbers" class="page-num" [class.page-active]="p === currentPage" (click)="goToPage(p)">
+        {{ p }}
+      </button>
+    </div>
+    <span class="page-info">Page {{ currentPage }} of {{ totalPages }}</span>
+    <button class="page-btn" [disabled]="currentPage === totalPages" (click)="goToPage(currentPage + 1)">
+      Next <mat-icon>chevron_right</mat-icon>
+    </button>
+  </div>
+
+  <!-- ═══ DETAIL DRAWER ═══ -->
+  <div class="drawer-overlay" [class.drawer-visible]="drawerOpen" (click)="closeDrawer()"></div>
+  <aside class="drawer" [class.drawer-open]="drawerOpen">
+    <div class="drawer-header">
+      <h2>Inspection Detail</h2>
+      <button class="drawer-close" (click)="closeDrawer()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <div class="drawer-body" *ngIf="selectedInspection">
+      <div class="drawer-verdict" [class.verdict-pass]="selectedInspection.label === 'OK'" [class.verdict-fail]="selectedInspection.label !== 'OK'">
+        {{ selectedInspection.label === 'OK' ? 'PASS' : 'FAIL' }}
+      </div>
+
+      <div class="drawer-fields">
+        <div class="drawer-field">
+          <span class="df-label">Inspection ID</span>
+          <span class="df-value">{{ selectedInspection.id }}</span>
+        </div>
+        <div class="drawer-field">
+          <span class="df-label">Timestamp</span>
+          <span class="df-value">{{ selectedInspection.timestamp | date:'dd MMMM yyyy, HH:mm:ss' }}</span>
+        </div>
+        <div class="drawer-field">
+          <span class="df-label">Device</span>
+          <span class="df-value">{{ selectedInspection.device || 'Camera 1' }}</span>
+        </div>
+        <div class="drawer-field">
+          <span class="df-label">Expiry Date Read</span>
+          <span class="df-value"
+            [class.df-highlight]="selectedInspection.detected_date && selectedInspection.detected_date !== 'missing'"
+            [class.df-missing]="!selectedInspection.detected_date || selectedInspection.detected_date === 'missing'">
+            {{ (selectedInspection.detected_date && selectedInspection.detected_date !== 'missing') ? selectedInspection.detected_date : 'missing' }}
+          </span>
+        </div>
+        <div class="drawer-field">
+          <span class="df-label">AI Confidence</span>
+          <span class="df-value df-highlight">{{ normaliseConfidence(selectedInspection.confidence) }}%</span>
+        </div>
+        <div class="drawer-field" *ngIf="selectedInspection.processing_time">
+          <span class="df-label">Processing Time</span>
+          <span class="df-value">{{ selectedInspection.processing_time }}s</span>
+        </div>
+        <div class="drawer-field">
+          <span class="df-label">Result Label</span>
+          <span class="df-value">{{ selectedInspection.label }}</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+</div>

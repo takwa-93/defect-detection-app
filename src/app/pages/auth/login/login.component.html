@@ -1,0 +1,73 @@
+<div class="login-root">
+
+  <!-- ── Brand header ── -->
+  <div class="login-brand">
+    <div class="login-logo"><mat-icon>precision_manufacturing</mat-icon></div>
+    <div class="login-brand-text">
+      <span class="login-brand-name">Agro-Tech Demonstrator</span>
+      <span class="login-brand-sub">INTELLIGENT QUALITY CONTROL</span>
+    </div>
+  </div>
+
+  <!-- ── Login card ── -->
+  <div class="login-card">
+
+    <div class="login-card-header">
+      <h2>Welcome back</h2>
+      <p>Sign in to access the factory control center</p>
+    </div>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+
+      <div class="login-field">
+        <label class="login-label">Email</label>
+        <div class="login-input-wrap" [class.input-error]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched">
+          <mat-icon class="input-icon">alternate_email</mat-icon>
+          <input class="login-input" type="email" formControlName="email" autocomplete="email">
+        </div>
+        <span class="login-error" *ngIf="loginForm.get('email')?.hasError('required') && loginForm.get('email')?.touched">
+          Email is required
+        </span>
+        <span class="login-error" *ngIf="loginForm.get('email')?.hasError('email') && loginForm.get('email')?.touched">
+          Invalid email address
+        </span>
+      </div>
+
+      <div class="login-field">
+        <label class="login-label">Password</label>
+        <div class="login-input-wrap" [class.input-error]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+          <mat-icon class="input-icon">lock_outline</mat-icon>
+          <input class="login-input" [type]="hidePassword ? 'password' : 'text'"
+                 formControlName="password" autocomplete="current-password">
+          <button type="button" class="toggle-pw" (click)="hidePassword = !hidePassword">
+            <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+        </div>
+        <span class="login-error" *ngIf="loginForm.get('password')?.hasError('required') && loginForm.get('password')?.touched">
+          Password is required
+        </span>
+      </div>
+
+      <button class="login-btn" type="submit" [disabled]="loginForm.invalid || loading">
+        <mat-icon *ngIf="!loading">login</mat-icon>
+        <span class="login-spinner" *ngIf="loading"></span>
+        {{ loading ? 'Signing in…' : 'Sign In' }}
+      </button>
+
+    </form>
+
+    <div class="login-footer">
+      <a routerLink="/register">Create account</a>
+      <span class="sep">·</span>
+      <a routerLink="/reset-password">Forgot password?</a>
+    </div>
+
+  </div>
+
+  <!-- ── Device strip ── -->
+  <div class="login-devices">
+    <span class="login-live-dot"></span>
+    Raspberry Pi &nbsp;·&nbsp; Niryo Ned2 &nbsp;·&nbsp; Siemens S7-1200
+  </div>
+
+</div>

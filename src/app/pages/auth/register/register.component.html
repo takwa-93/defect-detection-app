@@ -1,0 +1,137 @@
+<div class="login-root">
+
+  <!-- ── Brand header ── -->
+  <div class="login-brand">
+    <div class="login-logo"><mat-icon>precision_manufacturing</mat-icon></div>
+    <div class="login-brand-text">
+      <span class="login-brand-name">Agro-Tech Demonstrator</span>
+      <span class="login-brand-sub">INTELLIGENT QUALITY CONTROL</span>
+    </div>
+  </div>
+
+  <!-- ── Register card ── -->
+  <div class="login-card">
+
+    <div class="login-card-header">
+      <h2>Create Account</h2>
+      <p>Join the Smart Quality Control System</p>
+    </div>
+
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+
+      <!-- First Name + Last Name -->
+      <div class="name-row">
+        <div class="login-field">
+          <label class="login-label">First Name</label>
+          <div class="login-input-wrap"
+               [class.input-error]="registerForm.get('firstName')?.invalid && registerForm.get('firstName')?.touched">
+            <mat-icon class="input-icon">person_outline</mat-icon>
+            <input class="login-input" type="text" formControlName="firstName" placeholder="First name" autocomplete="given-name">
+          </div>
+          <span class="login-error"
+                *ngIf="registerForm.get('firstName')?.hasError('required') && registerForm.get('firstName')?.touched">
+            First name is required
+          </span>
+          <span class="login-error"
+                *ngIf="registerForm.get('firstName')?.hasError('minlength') && registerForm.get('firstName')?.touched">
+            Minimum 2 characters
+          </span>
+        </div>
+
+        <div class="login-field">
+          <label class="login-label">Last Name</label>
+          <div class="login-input-wrap"
+               [class.input-error]="registerForm.get('lastName')?.invalid && registerForm.get('lastName')?.touched">
+            <mat-icon class="input-icon">badge</mat-icon>
+            <input class="login-input" type="text" formControlName="lastName" placeholder="Last name" autocomplete="family-name">
+          </div>
+          <span class="login-error"
+                *ngIf="registerForm.get('lastName')?.hasError('required') && registerForm.get('lastName')?.touched">
+            Last name is required
+          </span>
+          <span class="login-error"
+                *ngIf="registerForm.get('lastName')?.hasError('minlength') && registerForm.get('lastName')?.touched">
+            Minimum 2 characters
+          </span>
+        </div>
+      </div>
+
+      <!-- Email -->
+      <div class="login-field">
+        <label class="login-label">Email</label>
+        <div class="login-input-wrap"
+             [class.input-error]="registerForm.get('email')?.invalid && registerForm.get('email')?.touched">
+          <mat-icon class="input-icon">alternate_email</mat-icon>
+          <input class="login-input" type="email" formControlName="email" autocomplete="email">
+        </div>
+        <span class="login-error"
+              *ngIf="registerForm.get('email')?.hasError('required') && registerForm.get('email')?.touched">
+          Email is required
+        </span>
+        <span class="login-error"
+              *ngIf="registerForm.get('email')?.hasError('email') && registerForm.get('email')?.touched">
+          Invalid email address
+        </span>
+      </div>
+
+      <!-- Password -->
+      <div class="login-field">
+        <label class="login-label">Password</label>
+        <div class="login-input-wrap"
+             [class.input-error]="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
+          <mat-icon class="input-icon">lock_outline</mat-icon>
+          <input class="login-input" [type]="hidePassword ? 'password' : 'text'"
+                 formControlName="password" autocomplete="new-password">
+          <button type="button" class="toggle-pw" (click)="hidePassword = !hidePassword">
+            <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+        </div>
+        <span class="login-error"
+              *ngIf="registerForm.get('password')?.hasError('required') && registerForm.get('password')?.touched">
+          Password is required
+        </span>
+        <span class="login-error"
+              *ngIf="registerForm.get('password')?.hasError('minlength') && registerForm.get('password')?.touched">
+          Minimum 6 characters
+        </span>
+      </div>
+
+      <!-- Role -->
+      <div class="login-field">
+        <label class="login-label">Role</label>
+        <div class="login-input-wrap"
+             [class.input-error]="registerForm.get('role')?.invalid && registerForm.get('role')?.touched">
+          <mat-icon class="input-icon">work_outline</mat-icon>
+          <select class="login-input login-select" formControlName="role">
+            <option value="worker">Worker</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <span class="login-error"
+              *ngIf="registerForm.get('role')?.hasError('required') && registerForm.get('role')?.touched">
+          Role is required
+        </span>
+      </div>
+
+      <button class="login-btn" type="submit" [disabled]="registerForm.invalid || loading">
+        <mat-icon *ngIf="!loading">person_add</mat-icon>
+        <span class="login-spinner" *ngIf="loading"></span>
+        {{ loading ? 'Creating account…' : 'Sign Up' }}
+      </button>
+
+    </form>
+
+    <div class="login-footer">
+      <a routerLink="/login">Already have an account? Sign in</a>
+    </div>
+
+  </div>
+
+  <!-- ── Device strip ── -->
+  <div class="login-devices">
+    <span class="login-live-dot"></span>
+    Raspberry Pi &nbsp;·&nbsp; Niryo Ned2 &nbsp;·&nbsp; Siemens S7-1200
+  </div>
+
+</div>

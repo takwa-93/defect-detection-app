@@ -1,0 +1,866 @@
+<div class="admin-shell" [class.light-mode]="themeService.isLight">
+
+  <!-- ═══ LEFT SIDEBAR ═══ -->
+  <aside class="sidebar" [class.collapsed]="sidebarCollapsed">
+    <div class="sidebar-logo">
+      <mat-icon class="logo-icon">precision_manufacturing</mat-icon>
+      <span class="logo-text" *ngIf="!sidebarCollapsed">QC<span class="logo-accent">Pro</span></span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="nav-item" [class.active]="activeTab==='overview'" (click)="activeTab='overview'">
+        <mat-icon>dashboard</mat-icon>
+        <span *ngIf="!sidebarCollapsed">Dashboard</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab==='requests'" (click)="activeTab='requests'">
+        <mat-icon>assignment</mat-icon>
+        <span *ngIf="!sidebarCollapsed">Requests</span>
+        <span class="nav-badge" *ngIf="pendingWorkers.length > 0">{{pendingWorkers.length}}</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab==='defective'" (click)="activeTab='defective'">
+        <mat-icon>report_problem</mat-icon>
+        <span *ngIf="!sidebarCollapsed">Defective Items</span>
+      </a>
+      <a class="nav-item" routerLink="/admin/history">
+        <mat-icon>history</mat-icon>
+        <span *ngIf="!sidebarCollapsed">Inspection History</span>
+      </a>
+      <a class="nav-item" routerLink="/admin/analytics">
+        <mat-icon>bar_chart</mat-icon>
+        <span *ngIf="!sidebarCollapsed">Analytics</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab==='workers'" (click)="activeTab='workers'; fetchAllUsers()">
+        <mat-icon>manage_accounts</mat-icon>
+        <span *ngIf="!sidebarCollapsed">Users &amp; Accounts</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab==='attendance'" (click)="activeTab='attendance'; fetchConnectedWorkers(); fetchAttendanceHistory()">
+        <mat-icon>badge</mat-icon>
+        <span *ngIf="!sidebarCollapsed">Attendance</span>
+        <span class="nav-badge nav-badge-green" *ngIf="connectedCount > 0">{{connectedCount}}</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab==='timeline'" (click)="activeTab='timeline'; fetchTimeline()">
+        <mat-icon>linear_scale</mat-icon>
+        <span *ngIf="!sidebarCollapsed">System Timeline</span>
+      </a>
+      <a class="nav-item" [class.active]="activeTab==='settings'" (click)="activeTab='settings'">
+        <mat-icon>tune</mat-icon>
+        <span *ngIf="!sidebarCollapsed">Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="nav-item logout-item" (click)="logout()">
+        <mat-icon>logout</mat-icon>
+        <span *ngIf="!sidebarCollapsed">Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN AREA ═══ -->
+  <div class="main-area">
+
+    <!-- DANGER ALERT BANNER -->
+    <div class="danger-banner" *ngIf="dangerAlertActive">
+      <mat-icon class="danger-icon">error</mat-icon>
+      <span class="danger-text">DANGER ALERT: {{ dangerAlertMessage }}</span>
+      <button class="danger-dismiss" (click)="dismissDangerBanner()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <!-- TOP NAVBAR -->
+    <header class="top-navbar">
+      <div class="navbar-left">
+        <button class="collapse-btn" (click)="sidebarCollapsed = !sidebarCollapsed">
+          <mat-icon>menu</mat-icon>
+        </button>
+        <div class="page-title">
+          <h1>Factory Command Center</h1>
+          <span class="current-time">{{ currentTime | date:'EEEE, d MMMM yyyy · HH:mm:ss' }}</span>
+        </div>
+      </div>
+      <div class="navbar-right">
+        <button class="icon-btn" (click)="themeService.toggleTheme()"
+          [matTooltip]="themeService.isLight ? 'Dark Mode' : 'Light Mode'">
+          <mat-icon>{{ themeService.isLight ? 'dark_mode' : 'light_mode' }}</mat-icon>
+        </button>
+        <div class="admin-profile">
+          <div class="avatar">SP</div>
+          <div class="profile-info">
+            <span class="profile-name">Supervisor</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- SCROLL AREA -->
+    <div class="content-scroll">
+
+      <!-- ═══ OVERVIEW TAB ═══ -->
+      <section *ngIf="activeTab === 'overview'" class="tab-content">
+
+        <!-- KPI CARDS -->
+        <div class="kpi-row">
+          <div class="kpi-card kpi-cyan">
+            <div class="kpi-icon"><mat-icon>inventory_2</mat-icon></div>
+            <div class="kpi-body">
+              <span class="kpi-label">Total Inspected</span>
+              <span class="kpi-value">{{ stats.totalInspected !== null ? (stats.totalInspected | number) : '—' }}</span>
+              <span class="kpi-sub">Today's production (since midnight)</span>
+            </div>
+          </div>
+          <div class="kpi-card kpi-amber" (click)="activeTab='requests'" style="cursor:pointer;">
+            <div class="kpi-icon"><mat-icon>pending_actions</mat-icon></div>
+            <div class="kpi-body">
+              <span class="kpi-label">Pending Approvals</span>
+              <span class="kpi-value">{{ pendingWorkers.length }}</span>
+              <span class="kpi-sub">Worker accounts awaiting review</span>
+            </div>
+          </div>
+          <div class="kpi-card kpi-red">
+            <div class="kpi-icon"><mat-icon>report_problem</mat-icon></div>
+            <div class="kpi-body">
+              <span class="kpi-label">Defective Items</span>
+              <span class="kpi-value">{{ stats.defective !== null ? (stats.defective | number) : '—' }}</span>
+              <span class="kpi-sub">Today's defects (since midnight)</span>
+            </div>
+          </div>
+          <div class="kpi-card kpi-green">
+            <div class="kpi-icon"><mat-icon>speed</mat-icon></div>
+            <div class="kpi-body">
+              <span class="kpi-label">Factory Efficiency</span>
+              <span class="kpi-value">{{ stats.efficiency !== null ? stats.efficiency + '%' : '—' }}</span>
+              <span class="kpi-sub">
+                {{ stats.totalInspected !== null ? stats.totalInspected : '—' }} / {{ stats.dailyTarget || settings.daily_target }} target
+              </span>
+            </div>
+          </div>
+          <div class="kpi-card kpi-blue" (click)="activeTab='attendance'; fetchConnectedWorkers(); fetchAttendanceHistory()" style="cursor:pointer;">
+            <div class="kpi-icon"><mat-icon>group</mat-icon></div>
+            <div class="kpi-body">
+              <span class="kpi-label">Workers Online</span>
+              <span class="kpi-value">{{ connectedCount }}</span>
+              <span class="kpi-sub">Currently connected</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI VISION + SYSTEM STATUS WIDGETS -->
+        <div class="widget-row">
+
+          <!-- AI VISION STATUS WIDGET -->
+          <div class="panel widget-panel">
+            <div class="panel-header">
+              <mat-icon>psychology</mat-icon>
+              <h2>AI Vision Pipeline</h2>
+              <span class="status-badge" [ngClass]="lastInspection ? 'status-green' : 'status-amber'">
+                {{ aiPipelineStatus }}
+              </span>
+            </div>
+            <div class="widget-body">
+              <div class="widget-grid" *ngIf="lastInspection">
+                <div class="widget-field">
+                  <span class="widget-field-label">Last Result</span>
+                  <span class="widget-field-value"
+                    [class.val-green]="lastInspection.label === 'OK'"
+                    [class.val-red]="lastInspection.label !== 'OK'">
+                    {{ lastInspection.label === 'OK' ? 'CONFORMING' : 'DEFECTIVE' }}
+                  </span>
+                </div>
+                <div class="widget-field">
+                  <span class="widget-field-label">Expiry Date Read</span>
+                  <span class="widget-field-value"
+                    [class.val-green]="lastInspection.detected_date && lastInspection.detected_date !== 'missing'"
+                    [class.val-amber]="!lastInspection.detected_date || lastInspection.detected_date === 'missing'">
+                    {{ (lastInspection.detected_date && lastInspection.detected_date !== 'missing') ? lastInspection.detected_date : 'missing' }}
+                  </span>
+                </div>
+                <div class="widget-field">
+                  <span class="widget-field-label">Confidence</span>
+                  <span class="widget-field-value">{{ normaliseConfidence(lastInspection.confidence) }}%</span>
+                </div>
+                <div class="widget-field">
+                  <span class="widget-field-label">Processing Time</span>
+                  <span class="widget-field-value">
+                    {{ lastInspection.processing_time ? (lastInspection.processing_time | number:'1.2-2') + 's' : '—' }}
+                  </span>
+                </div>
+                <div class="widget-field">
+                  <span class="widget-field-label">Detected At</span>
+                  <span class="widget-field-value">
+                    {{ lastInspection.timestamp | date:'HH:mm:ss' }}
+                  </span>
+                </div>
+              </div>
+              <div class="event-log-empty" *ngIf="!lastInspection">
+                No detections yet — waiting for AI pipeline
+              </div>
+            </div>
+          </div>
+
+          <!-- SYSTEM STATUS WIDGET -->
+          <div class="panel widget-panel">
+            <div class="panel-header">
+              <mat-icon>settings_input_component</mat-icon>
+              <h2>System Status</h2>
+              <span class="status-badge"
+                [ngClass]="statsError ? 'status-red' : (stats.totalInspected !== null ? 'status-green' : 'status-amber')">
+                {{ statsError ? 'DEGRADED' : (stats.totalInspected !== null ? 'ACTIVE' : 'CHECKING') }}
+              </span>
+            </div>
+            <div class="widget-body">
+              <div class="equip-list">
+
+                <!-- Robot -->
+                <div class="equip-row">
+                  <span class="equip-dot" [ngClass]="systemHealth.robot === 'online' ? 'dot-green' : 'dot-red'"></span>
+                  <div class="equip-info">
+                    <span class="equip-name">Robot (Niryo Ned2)</span>
+                    <span class="equip-sub">Robotic arm — joint control + inspection</span>
+                  </div>
+                  <span class="equip-status"
+                    [class.val-green]="systemHealth.robot === 'online'"
+                    [class.val-red]="systemHealth.robot !== 'online'">
+                    {{ systemHealth.robot === 'online' ? 'Connected' : 'Offline' }}
+                  </span>
+                </div>
+
+                <!-- AI Vision -->
+                <div class="equip-row">
+                  <span class="equip-dot" [ngClass]="systemHealth.ai === 'online' ? 'dot-green' : 'dot-amber'"></span>
+                  <div class="equip-info">
+                    <span class="equip-name">AI Vision Pipeline</span>
+                    <span class="equip-sub">YOLO inference — expiry &amp; defect detection</span>
+                  </div>
+                  <span class="equip-status"
+                    [class.val-green]="systemHealth.ai === 'online'"
+                    [class.val-amber]="systemHealth.ai !== 'online'">
+                    {{ systemHealth.ai === 'online' ? 'Running' : 'Waiting' }}
+                  </span>
+                </div>
+
+                <!-- PLC -->
+                <div class="equip-row">
+                  <span class="equip-dot" [ngClass]="systemHealth.plc === 'online' ? 'dot-green' : 'dot-red'"></span>
+                  <div class="equip-info">
+                    <span class="equip-name">PLC (Siemens S7-1200)</span>
+                    <span class="equip-sub">Conveyor &amp; actuator control</span>
+                  </div>
+                  <span class="equip-status"
+                    [class.val-green]="systemHealth.plc === 'online'"
+                    [class.val-red]="systemHealth.plc !== 'online'">
+                    {{ systemHealth.plc === 'online' ? 'Connected' : 'Offline' }}
+                  </span>
+                </div>
+
+                <!-- Database -->
+                <div class="equip-row">
+                  <span class="equip-dot" [ngClass]="systemHealth.database === 'online' ? 'dot-green' : 'dot-red'"></span>
+                  <div class="equip-info">
+                    <span class="equip-name">Database (MongoDB)</span>
+                    <span class="equip-sub">Inspection data store — Express + Socket.IO</span>
+                  </div>
+                  <span class="equip-status"
+                    [class.val-green]="systemHealth.database === 'online'"
+                    [class.val-red]="systemHealth.database !== 'online'">
+                    {{ systemHealth.database === 'online' ? 'Online' : 'Error' }}
+                  </span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- PENDING REGISTRATIONS -->
+        <div class="overview-grid">
+          <div class="panel pending-snapshot-panel">
+            <div class="panel-header">
+              <mat-icon>group_add</mat-icon>
+              <h2>Pending Registrations</h2>
+              <button class="refresh-btn" (click)="fetchPendingWorkers()" matTooltip="Refresh">
+                <mat-icon>refresh</mat-icon>
+              </button>
+            </div>
+
+            <div class="worker-list" *ngIf="pendingWorkers.length > 0">
+              <div class="worker-row" *ngFor="let w of pendingWorkers">
+                <div class="worker-avatar">{{ avatarInitials(w) }}</div>
+                <div class="worker-details">
+                  <strong>{{ displayName(w) }}</strong>
+                  <span>{{ w.email }}</span>
+                </div>
+                <div class="worker-btns">
+                  <button class="btn-approve" (click)="validateWorker(w._id, 'approved')"
+                    [disabled]="validationLoading">
+                    <mat-icon>check</mat-icon>
+                  </button>
+                  <button class="btn-reject" (click)="validateWorker(w._id, 'rejected')" [disabled]="validationLoading">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="empty-state" *ngIf="pendingWorkers.length === 0">
+              <mat-icon>how_to_reg</mat-icon>
+              <span>No pending requests</span>
+            </div>
+
+            <button class="view-all-btn" (click)="activeTab='requests'" *ngIf="pendingWorkers.length > 0">
+              View All Requests
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ═══ REQUESTS TAB ═══ -->
+      <section *ngIf="activeTab === 'requests'" class="tab-content">
+        <div class="section-header">
+          <div>
+            <h2>Worker Registration Requests</h2>
+            <p>Review and approve new worker accounts before they can access the system.</p>
+          </div>
+          <button class="refresh-btn-lg" (click)="fetchPendingWorkers()">
+            <mat-icon>refresh</mat-icon> Refresh
+          </button>
+        </div>
+
+        <div class="panel">
+          <div class="empty-state large" *ngIf="pendingWorkers.length === 0">
+            <mat-icon>how_to_reg</mat-icon>
+            <h3>No pending requests</h3>
+            <p>All worker registration requests have been processed.</p>
+          </div>
+
+          <table class="data-table" *ngIf="pendingWorkers.length > 0">
+            <thead>
+              <tr>
+                <th>Worker</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Registered</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let w of pendingWorkers">
+                <td>
+                  <div class="cell-user">
+                    <div class="table-avatar">{{ avatarInitials(w) }}</div>
+                    {{ displayName(w) }}
+                  </div>
+                </td>
+                <td>{{ w.email }}</td>
+                <td><span class="pill pill-cyan">{{ w.role }}</span></td>
+                <td>{{ w.createdAt | date:'dd MMM yyyy' }}</td>
+                <td><span class="pill pill-amber">Pending</span></td>
+                <td>
+                  <div class="action-btns">
+                    <button class="btn-approve-full" (click)="validateWorker(w._id, 'approved')"
+                      [disabled]="validationLoading">
+                      <mat-icon>check_circle</mat-icon> Approve
+                    </button>
+                    <button class="btn-reject-full" (click)="validateWorker(w._id, 'rejected')"
+                      [disabled]="validationLoading">
+                      <mat-icon>cancel</mat-icon> Reject
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══ DEFECTIVE ITEMS TAB ═══ -->
+      <section *ngIf="activeTab === 'defective'" class="tab-content">
+        <div class="section-header">
+          <div>
+            <h2>Defective Items</h2>
+            <p>All defective product records from the AI inspection system.</p>
+          </div>
+          <button class="refresh-btn-lg" (click)="fetchDefectiveItems()">
+            <mat-icon>refresh</mat-icon> Refresh
+          </button>
+        </div>
+        <div class="panel">
+          <div class="empty-state large" *ngIf="defectiveLoading">
+            <mat-icon>autorenew</mat-icon>
+            <p>Loading defective records...</p>
+          </div>
+          <div class="empty-state large" *ngIf="!defectiveLoading && defectiveItems.length === 0">
+            <mat-icon>precision_manufacturing</mat-icon>
+            <h3>No defective items recorded</h3>
+            <p>Defective products detected by the AI pipeline will appear here automatically.</p>
+          </div>
+          <table class="data-table" *ngIf="!defectiveLoading && defectiveItems.length > 0">
+            <thead>
+              <tr>
+                <th>Product ID</th>
+                <th>Inspection Device</th>
+                <th>Defect Confidence</th>
+                <th>Result</th>
+                <th>Detection Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of defectiveItems">
+                <td>
+                  <div class="cell-user">
+                    <strong>{{ ((item._id || '') | slice:-6) || 'N/A' }}</strong>
+                  </div>
+                </td>
+                <td>{{ item.device }}</td>
+                <td>{{ (item.confidence > 1 ? item.confidence : item.confidence * 100) | number:'1.0-0' }}%</td>
+                <td><span class="pill pill-red">Defective</span></td>
+                <td>{{ item.timestamp | date:'dd MMM yyyy, HH:mm:ss' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══ WORKERS / USERS TAB ═══ -->
+      <section *ngIf="activeTab === 'workers'" class="tab-content">
+        <div class="section-header">
+          <div>
+            <h2>Users &amp; Accounts</h2>
+            <p>Manage all registered user accounts.</p>
+          </div>
+          <button class="refresh-btn-lg" (click)="fetchAllUsers()">
+            <mat-icon>refresh</mat-icon> Refresh
+          </button>
+        </div>
+
+        <div class="panel">
+          <div class="empty-state large" *ngIf="allUsersLoading">
+            <mat-icon class="spin-icon">autorenew</mat-icon>
+            <p>Loading users...</p>
+          </div>
+
+          <div class="empty-state large" *ngIf="!allUsersLoading && allUsersError">
+            <mat-icon>cloud_off</mat-icon>
+            <h3>{{ allUsersError }}</h3>
+            <p>Check the backend connection and try again.</p>
+            <button class="refresh-btn-lg" style="margin-top:10px" (click)="fetchAllUsers()">
+              <mat-icon>refresh</mat-icon> Retry
+            </button>
+          </div>
+
+          <div class="empty-state large" *ngIf="!allUsersLoading && !allUsersError && allUsers.length === 0">
+            <mat-icon>manage_accounts</mat-icon>
+            <h3>No users found</h3>
+          </div>
+
+          <table class="data-table" *ngIf="!allUsersLoading && !allUsersError && allUsers.length > 0">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Registered</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let u of allUsers">
+                <td>
+                  <div class="cell-user">
+                    <div class="table-avatar">{{ avatarInitials(u) }}</div>
+                    {{ displayName(u) }}
+                  </div>
+                </td>
+                <td>{{ u.email }}</td>
+                <td><span class="pill" [ngClass]="u.role === 'admin' ? 'pill-cyan' : 'pill-gray'">{{ u.role === 'admin' ? 'Supervisor' : u.role }}</span></td>
+                <td>
+                  <span class="pill" [ngClass]="{
+                    'pill-green': u.status === 'approved',
+                    'pill-amber': u.status === 'pending',
+                    'pill-red':   u.status === 'rejected'
+                  }">{{ u.status }}</span>
+                </td>
+                <td>{{ u.createdAt | date:'dd MMM yyyy' }}</td>
+                <td>
+                  <button class="btn-reject-full" (click)="deleteUser(u._id, u.email)">
+                    <mat-icon>delete_forever</mat-icon> Delete
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══ ATTENDANCE TAB ═══ -->
+      <section *ngIf="activeTab === 'attendance'" class="tab-content">
+
+        <!-- Currently Connected -->
+        <div class="section-header">
+          <div>
+            <h2>Worker Supervision &amp; Attendance</h2>
+            <p>Real-time presence tracking and session history for all workers.</p>
+          </div>
+          <button class="refresh-btn-lg" (click)="fetchConnectedWorkers(); fetchAttendanceHistory()">
+            <mat-icon>refresh</mat-icon> Refresh
+          </button>
+        </div>
+
+        <!-- Connected Now -->
+        <div class="panel attend-connected-panel">
+          <div class="panel-header">
+            <mat-icon>wifi</mat-icon>
+            <h2>Currently Connected Workers</h2>
+            <span class="status-badge" [ngClass]="connectedCount > 0 ? 'status-green' : 'status-amber'">
+              {{ connectedCount }} ONLINE
+            </span>
+          </div>
+          <div class="worker-list" *ngIf="connectedWorkers.length > 0">
+            <div class="worker-row" *ngFor="let w of connectedWorkers">
+              <span class="online-dot"></span>
+              <div class="worker-avatar">{{ avatarInitials(w) }}</div>
+              <div class="worker-details">
+                <strong>{{ displayName(w) }}</strong>
+                <span>{{ w.email }} · <em>{{ w.role }}</em></span>
+              </div>
+              <div class="worker-session-info">
+                <span class="session-label">Since</span>
+                <span class="session-val">{{ w.loginTime | date:'HH:mm' }}</span>
+                <span class="session-label">Duration</span>
+                <span class="session-val">{{ formatDuration(w.sessionDurationMin) }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="empty-state" *ngIf="connectedWorkers.length === 0">
+            <mat-icon>person_off</mat-icon>
+            <span>No workers currently connected</span>
+          </div>
+        </div>
+
+        <!-- Filter row -->
+        <div class="attend-filter-row">
+          <label class="filter-label">Period:</label>
+          <button class="filter-btn" [class.active]="attendanceRange==='day'"
+            (click)="attendanceRange='day'; fetchAttendanceHistory()">Today</button>
+          <button class="filter-btn" [class.active]="attendanceRange==='week'"
+            (click)="attendanceRange='week'; fetchAttendanceHistory()">This Week</button>
+          <button class="filter-btn" [class.active]="attendanceRange==='month'"
+            (click)="attendanceRange='month'; fetchAttendanceHistory()">This Month</button>
+          <input *ngIf="attendanceRange==='day'" type="date" class="date-input"
+            [(ngModel)]="attendanceDate" (change)="fetchAttendanceHistory()">
+        </div>
+
+        <!-- Per-Worker Summary -->
+        <div class="panel" *ngIf="attendanceSummary.length > 0">
+          <div class="panel-header">
+            <mat-icon>summarize</mat-icon>
+            <h2>Work Summary —
+              {{ attendanceRange === 'week' ? 'This Week' :
+                 attendanceRange === 'month' ? 'This Month' :
+                 (attendanceDate | date:'dd MMM yyyy') }}</h2>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Worker</th>
+                <th>Role</th>
+                <th>Sessions</th>
+                <th>Total Hours</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let s of attendanceSummary">
+                <td>
+                  <div class="cell-user">
+                    <div class="table-avatar">{{ avatarInitials(s) }}</div>
+                    {{ displayName(s) }}
+                  </div>
+                </td>
+                <td><span class="pill pill-cyan">{{ s.role }}</span></td>
+                <td>{{ s.sessions.length }}</td>
+                <td><strong>{{ s.totalMinutes > 0 ? formatDuration(s.totalMinutes) : '—' }}</strong></td>
+                <td>
+                  <span *ngIf="s.absent" class="pill pill-red">Absent</span>
+                  <span *ngIf="!s.absent" class="pill" [ngClass]="s.sessions[0]?.isActive ? 'pill-green' : 'pill-gray'">
+                    {{ s.sessions[0]?.isActive ? 'Present' : 'Left' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Session Log -->
+        <div class="panel">
+          <div class="panel-header">
+            <mat-icon>history</mat-icon>
+            <h2>Session Log</h2>
+          </div>
+          <div class="empty-state large" *ngIf="attendanceLoading">
+            <mat-icon class="spin-icon">autorenew</mat-icon>
+            <p>Loading attendance records...</p>
+          </div>
+          <div class="empty-state large" *ngIf="!attendanceLoading && attendanceLogs.length === 0">
+            <mat-icon>event_busy</mat-icon>
+            <h3>No sessions recorded for this period</h3>
+          </div>
+          <table class="data-table" *ngIf="!attendanceLoading && attendanceLogs.length > 0">
+            <thead>
+              <tr>
+                <th>Worker</th>
+                <th>Role</th>
+                <th>Date</th>
+                <th>Login</th>
+                <th>Logout</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let log of attendanceLogs">
+                <td>
+                  <div class="cell-user">
+                    <div class="table-avatar">{{ avatarInitials(log) }}</div>
+                    {{ displayName(log) }}
+                  </div>
+                </td>
+                <td><span class="pill pill-cyan">{{ log.role }}</span></td>
+                <td>{{ log.date }}</td>
+                <td>{{ log.loginTime | date:'HH:mm:ss' }}</td>
+                <td>
+                  <span *ngIf="log.logoutTime">{{ log.logoutTime | date:'HH:mm:ss' }}</span>
+                  <span *ngIf="!log.logoutTime" class="pill pill-green">Active</span>
+                </td>
+                <td>
+                  <strong>{{ log.logoutTime ? formatDuration(log.sessionDuration || 0) : 'Ongoing' }}</strong>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ═══ SYSTEM TIMELINE TAB ═══ -->
+      <section *ngIf="activeTab === 'timeline'" class="tab-content">
+        <div class="section-header">
+          <div>
+            <h2>System Operation Timeline</h2>
+            <p>Daily factory state from 07:00 to 19:00. Auto-resets each production day.</p>
+          </div>
+          <div class="header-actions">
+            <input type="date" class="date-input" [(ngModel)]="timelineDate" (change)="fetchTimeline()">
+            <button class="refresh-btn-lg" (click)="fetchTimeline()">
+              <mat-icon>refresh</mat-icon> Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Automatic state info panel -->
+        <div class="panel timeline-control-panel">
+          <div class="panel-header">
+            <mat-icon>auto_mode</mat-icon>
+            <h2>Automatic State Timeline</h2>
+            <span class="status-badge status-green">AUTO</span>
+          </div>
+          <div class="tl-auto-info">
+            <p class="tl-auto-desc">
+              Timeline events are generated automatically from system component states.
+              The timeline runs from <strong>07:00</strong> to <strong>19:00</strong> each production day.
+            </p>
+            <div class="tl-state-rules">
+              <div class="tl-state-row">
+                <span class="tl-dot tl-dot-yellow"></span>
+                <div>
+                  <strong>Partial Start (Yellow)</strong>
+                  <span>Robot + PLC connected — waiting for AI &amp; Database</span>
+                </div>
+              </div>
+              <div class="tl-state-row">
+                <span class="tl-dot tl-dot-green"></span>
+                <div>
+                  <strong>Fully Operational (Green)</strong>
+                  <span>Robot + PLC + AI Vision + Database all active</span>
+                </div>
+              </div>
+              <div class="tl-state-row">
+                <span class="tl-dot tl-dot-red"></span>
+                <div>
+                  <strong>Stopped / Fault (Red)</strong>
+                  <span>Robot disconnected or critical component failure</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Live component state summary -->
+          <div class="tl-live-state">
+            <span class="tl-live-item">
+              <span class="equip-dot" [ngClass]="systemHealth.robot === 'online' ? 'dot-green' : 'dot-red'"></span>
+              Robot
+            </span>
+            <span class="tl-live-item">
+              <span class="equip-dot" [ngClass]="systemHealth.plc === 'online' ? 'dot-green' : 'dot-red'"></span>
+              PLC
+            </span>
+            <span class="tl-live-item">
+              <span class="equip-dot" [ngClass]="systemHealth.ai === 'online' ? 'dot-green' : 'dot-amber'"></span>
+              AI Vision
+            </span>
+            <span class="tl-live-item">
+              <span class="equip-dot" [ngClass]="systemHealth.database === 'online' ? 'dot-green' : 'dot-red'"></span>
+              Database
+            </span>
+          </div>
+        </div>
+
+        <!-- Timeline visualization -->
+        <div class="panel">
+          <div class="panel-header">
+            <mat-icon>linear_scale</mat-icon>
+            <h2>{{ timelineDate | date:'EEEE, d MMMM yyyy' }}</h2>
+          </div>
+          <div class="empty-state" *ngIf="timelineLoading">
+            <mat-icon class="spin-icon">autorenew</mat-icon>
+            <span>Loading timeline...</span>
+          </div>
+
+          <div class="tl-container" *ngIf="!timelineLoading">
+            <!-- Hour labels -->
+            <div class="tl-hour-labels">
+              <span *ngFor="let h of timelineHours()" class="tl-hour-label">
+                {{ h.toString().padStart(2,'0') }}:00
+              </span>
+            </div>
+
+            <!-- Track -->
+            <div class="tl-track">
+              <div class="tl-baseline"></div>
+              <!-- Events as markers -->
+              <div *ngFor="let ev of timelineEvents"
+                class="tl-marker"
+                [style.left]="timelineEventLeft(ev)"
+                [class.tl-marker-yellow]="ev.color === 'yellow'"
+                [class.tl-marker-green]="ev.color === 'green'"
+                [class.tl-marker-red]="ev.color === 'red'"
+                [matTooltip]="ev.label + ' — ' + (ev.timestamp | date:'HH:mm:ss')">
+                <div class="tl-marker-dot"></div>
+                <div class="tl-marker-line"></div>
+                <div class="tl-marker-label">{{ ev.label }}<br><small>{{ ev.timestamp | date:'HH:mm' }}</small></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Event list -->
+          <div class="tl-event-list" *ngIf="!timelineLoading && timelineEvents.length > 0">
+            <div *ngFor="let ev of timelineEvents" class="tl-event-row"
+              [class.tl-ev-yellow]="ev.color==='yellow'"
+              [class.tl-ev-green]="ev.color==='green'"
+              [class.tl-ev-red]="ev.color==='red'">
+              <span class="tl-ev-dot"></span>
+              <span class="tl-ev-time">{{ ev.timestamp | date:'HH:mm:ss' }}</span>
+              <span class="tl-ev-label">{{ ev.label }}</span>
+            </div>
+          </div>
+          <div class="empty-state" *ngIf="!timelineLoading && timelineEvents.length === 0">
+            <mat-icon>timeline</mat-icon>
+            <span>No events recorded for this day</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SETTINGS TAB ═══ -->
+      <section *ngIf="activeTab === 'settings'" class="tab-content">
+        <div class="section-header">
+          <div>
+            <h2>System Settings</h2>
+            <p>Configure production targets, expiry thresholds, and alert controls.</p>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+
+          <!-- Daily Production Target -->
+          <div class="panel settings-card">
+            <div class="panel-header">
+              <mat-icon>track_changes</mat-icon>
+              <h2>Daily Production Target</h2>
+            </div>
+            <div class="settings-body">
+              <p class="settings-desc">
+                Sets the denominator for efficiency calculation:<br>
+                <code>Efficiency = (Inspected / Target) × 100</code>
+              </p>
+              <div class="settings-field">
+                <label>Daily Target (products)</label>
+                <input type="number" class="settings-input" [(ngModel)]="settings.daily_target"
+                  min="1" max="10000" placeholder="450">
+                <span class="settings-hint">Current: {{ stats.totalInspected || 0 }} / {{ settings.daily_target }} = {{ stats.efficiency || 0 }}%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Expiry Threshold -->
+          <div class="panel settings-card">
+            <div class="panel-header">
+              <mat-icon>event_busy</mat-icon>
+              <h2>Expiration Rejection Threshold</h2>
+            </div>
+            <div class="settings-body">
+              <p class="settings-desc">
+                Products with an expiry date <strong>before</strong> this threshold are treated as <strong>expired (defective)</strong>.
+                Leave blank to disable threshold validation.
+              </p>
+              <div class="settings-field">
+                <label>Threshold Date</label>
+                <input type="date" class="settings-input" [(ngModel)]="settings.expiry_threshold"
+                  placeholder="YYYY-MM-DD">
+                <span class="settings-hint" *ngIf="settings.expiry_threshold">
+                  Products expiring before {{ settings.expiry_threshold | date:'dd MMM yyyy' }} → Defective
+                </span>
+                <span class="settings-hint" *ngIf="!settings.expiry_threshold">No threshold set — all expiry dates accepted</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Danger Alert Trigger -->
+          <div class="panel settings-card">
+            <div class="panel-header">
+              <mat-icon>notification_important</mat-icon>
+              <h2>Manual Danger Alert</h2>
+            </div>
+            <div class="settings-body">
+              <p class="settings-desc">
+                Broadcasts an emergency alert to all workers and admins via email + in-app notification.
+              </p>
+              <div class="settings-field">
+                <label>Alert Message</label>
+                <input type="text" class="settings-input"
+                  [(ngModel)]="manualDangerMessage"
+                  placeholder="e.g. Conveyor fault — stop production immediately">
+              </div>
+              <button class="btn-danger-send" (click)="triggerManualDangerAlert()"
+                [disabled]="sendingDangerAlert || !manualDangerMessage.trim()">
+                <mat-icon>send</mat-icon>
+                {{ sendingDangerAlert ? 'Sending...' : 'Send Danger Alert' }}
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Save button -->
+        <div class="settings-save-row">
+          <button class="btn-save-settings" (click)="saveSettings()" [disabled]="settingsSaving">
+            <mat-icon>save</mat-icon>
+            {{ settingsSaving ? 'Saving...' : (settingsSuccess ? 'Saved!' : 'Save Settings') }}
+          </button>
+        </div>
+
+      </section>
+
+    </div>
+  </div>
+</div>
