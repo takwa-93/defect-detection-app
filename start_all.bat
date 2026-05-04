@@ -1,17 +1,29 @@
 @echo off
 echo Starting Smart Quality Control System...
 
-:: ── Terminal 1: Node Backend (auto-starts niryo_stream.py on port 5001) ─────
-start "Node Backend" cmd /k "cd /d "C:\Users\takou\Desktop\PFE\defect-detection-app\backend" && node server.js"
+:: --- CONFIGURATION ---
+set PYTHON_EXE="C:\Python314\python.exe"
+set ROOT=C:\Users\takou\Desktop\PFE\defect-detection-app
+set BACKEND=%ROOT%\backend
 
-:: Wait 3 seconds for backend + stream server to initialize
-timeout /t 3 /nobreak > nul
+:: ── 1. Node Backend ───
+echo [1/5] Starting Node.js backend...
+start "Backend :5000" cmd /k "cd /d "%BACKEND%" && node server.js"
+timeout /t 4 /nobreak > nul
 
-:: ── Terminal 2: AI Processor ───────────────────────────────────────────
-start "AI Processor" cmd /k "cd /d "C:\Users\takou\Desktop\PFE\defect-detection-app\backend" && python ai_processor.py"
 
-:: ── Terminal 3: Angular Frontend ─────────────────────────────────────────────
+:: ── 2. AI Processor (Using Global 3.10) ───
+echo [2/5] Starting AI Processor...
+start "AI Processor" cmd /k "cd /d "%BACKEND%" && %PYTHON_EXE% ai_processor.py"
+timeout /t 2 /nobreak > nul
+
+:: ── 3. Angular Frontend ─────────────────────────────────────────────
 start "Angular Frontend" cmd /k "cd /d "C:\Users\takou\Desktop\PFE\defect-detection-app" && npx ng serve"
+
+:: ── 4. Niryo Controller (Using Global 3.10) ───
+echo [3/5] Starting Niryo controller...
+start "Robot :5002" cmd /k "cd /d "%BACKEND%" && %PYTHON_EXE% niryo_pick_place.py"
+timeout /t 2 /nobreak > nul
 
 :: Wait for Angular to compile before opening browser
 echo.
