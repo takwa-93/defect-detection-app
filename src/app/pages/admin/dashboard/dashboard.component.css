@@ -1315,7 +1315,16 @@
   font-family: var(--font-data); font-size: 12px; font-weight: 600;
   color: var(--text-secondary);
 }
-.tl-live-item .equip-dot { width: 8px; height: 8px; }
+.tl-live-item .equip-dot { 
+  width: 10px; 
+  height: 10px; 
+  border-radius: 50%; /* Makes it a circle */
+  display: inline-block;
+}
+
+.tl-dot-green, .dot-green { background-color: #22c55e; }
+.tl-dot-yellow, .dot-amber { background-color: #f59e0b; }
+.tl-dot-red, .dot-red { background-color: #ef4444; }
 
 /* ── Profile — remove role line spacing fix ──────────────────── */
 .profile-info { gap: 1px; }

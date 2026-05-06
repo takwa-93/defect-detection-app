@@ -20,7 +20,7 @@ from barcode_scanner import BarcodeScanner
 # CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════════
 VISION_STREAM_URL  = "http://localhost:5001/stream"
-BARCODE_STREAM_URL = "http://192.168.0.125:4747/video" 
+BARCODE_STREAM_URL = "http://10.10.10.227:4747/video" 
 YOLO_MODEL_PATH       = "yog_yolo26n.pt"
 CLASSIFIER_MODEL_PATH = "best_model.pt"
 FLAVOR_MODEL_PATH     = "./TrCustom"
